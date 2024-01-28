@@ -1,0 +1,25 @@
+# Ignore compiled files and directories
+*.o
+*.out
+*.exe
+
+# Ignore build and output directories
+/build/
+/dist/
+
+# Ignore editor and IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+
+# Ignore package manager directories
+node_modules/
+vendor/
+
+# Ignore system files
+.DS_Store
+Thumbs.db

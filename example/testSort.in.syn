@@ -1,0 +1,52 @@
+int main(int gf)
+{
+int n = 16;
+int i = 0;
+int arr[16];
+arr[i] = i;
+arr[0] = 434;
+arr[1] = 34;
+arr[2] = -3;
+arr[3] = -155;
+arr[4] = 3434;
+arr[5] = -34;
+arr[6] = 34;
+arr[7] = -155;
+arr[8] = 434;
+arr[9] = 34;
+arr[10] = -3;
+arr[11] = -155;
+arr[12] = 3434;
+arr[13] = -34;
+arr[14] = 34;
+arr[15] = -155;
+print(arr[i]);
+int temp = 0;
+int j = 0;
+i = 0;
+while (<(i, -(n, 1)))
+{
+j = 0;
+while (<(j, -(-(n, 1), i)))
+{
+if (>(arr[j], arr[+(j, 1)]))
+{
+temp = arr[j];
+arr[j] = arr[+(j, 1)];
+arr[+(j, 1)] = temp;
+}
+j = +(j, 1);
+}
+i = +(i, 1);
+}
+i = 0;
+while (<(i, n))
+{
+{
+print(arr[i]);
+i = +(i, 1);
+}
+}
+return 0;
+}
+

@@ -1,0 +1,7 @@
+int main(int x)
+{
+    float i = 3.23;
+    float y = i;
+    print(y);
+    return 0;
+}

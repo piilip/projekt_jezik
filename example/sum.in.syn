@@ -1,0 +1,22 @@
+int main(int x)
+{
+int a[4];
+int y = 2;
+print(y);
+a[+(y, 1)] = 2;
+y = a[3];
+print(y);
+int sum = 0;
+int i = +(y, sum);
+i = 1;
+print(sum);
+sum = 0;
+while (<=(i, x))
+{
+sum = +(sum, i);
+i = +(i, 1);
+}
+print(sum);
+return sum;
+}
+
