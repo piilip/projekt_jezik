@@ -35,7 +35,7 @@
 #define OPT_LEVEL 2
 #endif
 
-constexpr int dumpIt = 1;
+int dumpIt = 1;
 
 namespace {
     using namespace llvm;
