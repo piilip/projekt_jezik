@@ -35,7 +35,7 @@
 #define OPT_LEVEL 2
 #endif
 
-constexpr int DUMP = 1;
+constexpr int dumpIt = 1;
 
 namespace {
     using namespace llvm;
@@ -84,7 +84,7 @@ int main( int argc, const char* const* argv ) {
     }
     const char* envVarValue = std::getenv("DUMP");
     if (envVarValue != nullptr) {
-        DUMP = envVarValue;
+        dumpIt = envVarValue;
 }
 
     // Parse and typecheck builtin functions.
@@ -199,7 +199,7 @@ namespace {
 
     void dumpSyntax( const Program& program, const char* srcFilename )
     {
-        if ( DUMP == 0)
+        if ( dumpIt == 0)
             return;
         std::string   filename( std::string( srcFilename ) + ".syn" );
         std::ofstream out( filename );
@@ -207,7 +207,7 @@ namespace {
     }
     void dumpIR( llvm::Module& module, const char* srcFilename, const char* what )
     {
-        if ( DUMP == 0)
+        if ( dumpIt == 0)
             return;
         std::string   filename( std::string( srcFilename ) + "." + what + ".ll" );
         std::ofstream stream( filename );
