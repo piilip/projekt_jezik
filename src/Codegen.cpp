@@ -48,7 +48,9 @@ namespace {
                     return m_floatType;
                 case kTypeUnknown:
                     assert(false && "Invalid type");
+                    return nullptr;
             }
+            return nullptr;
         }
 
         std::pair<Value*, Value*> EnsureSameType(llvm::Value *lhs, llvm::Value *rhs) {
@@ -205,6 +207,7 @@ namespace {
                 case VarDecl::kLocal:
                     return getBuilder()->CreateLoad(this->ConvertType(varDecl->GetType()), value, varDecl->GetName());
             }
+            return nullptr;
         }
 
         // Generate code for a function call.

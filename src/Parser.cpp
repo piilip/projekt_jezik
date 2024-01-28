@@ -86,9 +86,9 @@ namespace {
             }
                 // Prefix minus
             case kTokenMinus: {
-                Token unaryOp(*tokens++);
+
                 ExpPtr exp(parsePrimaryExp(tokens));
-                return std::make_unique<CallExp>(unaryOp.ToString(), std::move(exp));
+                return std::make_unique<CallExp>(token.ToString(), std::move(exp));
             }
             default:
                 throw ParseError(std::string("Unexpected token: ") + token.ToString(), token.getLine(),
