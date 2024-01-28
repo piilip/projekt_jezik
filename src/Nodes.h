@@ -2,7 +2,7 @@
 
 #include <memory>
 
-// Forward declarations for syntax classes
+// Forward declarations for nodes
 
 class Exp;
 class BoolExp;
