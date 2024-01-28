@@ -84,7 +84,7 @@ int main( int argc, const char* const* argv ) {
     }
     const char* envVarValue = std::getenv("DUMP");
     if (envVarValue != nullptr) {
-        dumpIt = envVarValue;
+        dumpIt = dumpIt = std::atoi(envVarValue);
 }
 
     // Parse and typecheck builtin functions.
