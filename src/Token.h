@@ -12,11 +12,14 @@ enum TokenType
     kTokenIntNum,
     kTokenFPNum,
     kTokenId,
+    kTokenStrLit,
 
+
+    kTokenString,
     kTokenBool,
     kTokenTrue,
     kTokenFalse,
-    kTokenInt,
+    INT,
     kTokenFloat,
     kTokenIf,
     kTokenElse,
@@ -125,7 +128,7 @@ class Token
             case kTokenOr:
             case kTokenNot:
             case kTokenBool:
-            case kTokenInt:
+            case INT:
             case kTokenFloat:
                 return true;
             default:
@@ -145,7 +148,7 @@ class Token
         switch (type) {
             case kTokenFloat:      return "float";
             case kTokenBool:      return "bool";
-            case kTokenInt:       return "int";
+            case INT:       return "int";
             case kTokenTrue:      return "true";
             case kTokenFalse:     return "false";
             case kTokenIf:        return "if";

@@ -181,3 +181,20 @@ class CallExp : public Exp
 // Unique pointer to function call expression
 using CallExpPtr = std::unique_ptr<CallExp>;
 
+struct VarType {
+
+    Type type;
+    bool isArray;
+    std::unique_ptr<Exp> arraySize;
+
+    explicit VarType(Type type) : type(type), isArray(false), arraySize(nullptr) {}
+    VarType(Type type, std::unique_ptr<Exp> arrayExpSize) : type(type), isArray(true), arraySize(std::move(arrayExpSize)) {}
+
+    const Exp& getArraySizeExp() const
+    {
+        assert(isArray);
+        return *arraySize;
+    }
+
+
+};

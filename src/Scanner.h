@@ -114,7 +114,7 @@ private:
         else if (lexeme == "bool") return makeToken(TokenType::kTokenBool, lexeme, line, column);
         else if (lexeme == "true") return makeToken(TokenType::kTokenTrue, lexeme, line, column);
         else if (lexeme == "false") return makeToken(TokenType::kTokenFalse, lexeme, line, column);
-        else if (lexeme == "int") return makeToken(TokenType::kTokenInt, lexeme, line, column);
+        else if (lexeme == "int") return makeToken(TokenType::INT, lexeme, line, column);
         else if (lexeme == "if") return makeToken(TokenType::kTokenIf, lexeme, line, column);
         else if (lexeme == "else") return makeToken(TokenType::kTokenElse, lexeme, line, column);
         else if (lexeme == "return") return makeToken(TokenType::kTokenReturn, lexeme, line, column);

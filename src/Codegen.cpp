@@ -29,6 +29,15 @@ namespace {
         CodegenBase(LLVMContext *context, Module *module, IRBuilder<> *builder)
                 : m_context(context), m_module(module), m_builder(builder), m_boolType(IntegerType::get(*m_context, 1)),
                   m_intType(IntegerType::get(*m_context, 32)), m_floatType(llvm::Type::getFloatTy(*m_context)) {
+            llvm::FunctionType *printfType = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(*m_context),
+                                                                     {llvm::PointerType::get(
+                                                                             llvm::Type::getInt8Ty(*m_context), 0)},
+                                                                     true);
+            m_module->getOrInsertFunction("printf", printfType);
+
+            llvm::FunctionType *exitType = llvm::FunctionType::get(llvm::Type::getVoidTy(*m_context),
+                                                                   {llvm::IntegerType::getInt32Ty(*m_context)}, false);
+            m_module->getOrInsertFunction("exit", exitType);
         }
 
         LLVMContext *getContext() { return m_context; }
@@ -68,13 +77,13 @@ namespace {
                 } else if (lhsType->isFloatTy() && rhsType->isIntegerTy(32)) {
                     rhs = getBuilder()->CreateSIToFP(rhs, lhsType, "inttofloat");
                 }
-                // INT -> BOOL
+                    // INT -> BOOL
                 else if (lhsType->isIntegerTy(32)&& rhsType->isIntegerTy(1)) {
                     lhs = convertToTargetType(lhs, rhsType);
                 } else if (lhsType->isIntegerTy(1) && rhsType->isIntegerTy(32)) {
                     rhs = convertToTargetType(rhs, lhsType);
                 }
-                // FLOAT -> BOOL
+                    // FLOAT -> BOOL
                 else if (lhsType->isIntegerTy(1)&& rhsType->isFloatTy()) {
                     rhs = getBuilder()->CreateFCmpONE(lhs, zero, "floattobool");
                 } else if (lhsType->isFloatTy() && rhsType->isIntegerTy(1)) {
@@ -116,7 +125,7 @@ namespace {
             else if (sourceType->isIntegerTy(1) && target->isFloatTy()) {
                 return  m_builder->CreateUIToFP(value, target, "boolToFloat");
             }
-            // float -> double Because of printf
+                // float -> double Because of printf
             else if (sourceType->isFloatTy() && target->isDoubleTy()) {
                 return  m_builder->CreateFPExt(value, target, "floatToDouble");
             }
@@ -178,14 +187,21 @@ namespace {
             //auto var3 = allocInst->getArraySize();
 
             Value *index = Codegen(*exp.getIndexExp());
+            if(allocInst->getAllocatedType()->isArrayTy()) {
+                std::vector<Value *> indices;
+                Value *zero = GetInt(0);
+                indices.push_back(zero); // First index: 0 for the array pointer
+                indices.push_back(index); // Second index: your desired index
+                Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, indices);
 
-            std::vector<Value *> indices;
-            Value *zero = GetInt(0);
-            indices.push_back(zero); // First index: 0 for the array pointer
-            indices.push_back(index); // Second index: your desired index
-            Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, indices);
 
-            return getBuilder()->CreateLoad(allocInst->getAllocatedType()->getArrayElementType(), elementPtr, "load");
+                return getBuilder()->CreateLoad(allocInst->getAllocatedType()->getArrayElementType(), elementPtr,
+                                                "load");
+
+            }else{
+                Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, index, "molim");
+                return getBuilder()->CreateLoad(allocInst->getAllocatedType(), elementPtr, "load");
+            }
 
         }
 
@@ -442,15 +458,20 @@ namespace {
 
 
             rvalue = convertToTargetType(rvalue, allocInst->getAllocatedType());
+            if(allocInst->getAllocatedType()->isArrayTy()){
+                std::vector<Value *> indices;
+                Value *zero = GetInt(0);
+                indices.push_back(zero); // First index: 0 for the array pointer (this is useful when dealing with multiple dimension arrays)
+                indices.push_back(index); // Second index: desired index
+                Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, indices, "idemo1");
 
-            std::vector<Value *> indices;
-            Value *zero = GetInt(0);
-            indices.push_back(zero); // First index: 0 for the array pointer (this is useful when dealing with multiple dimension arrays)
-            indices.push_back(index); // Second index: desired index
-            Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, indices);
+                // Store the new value into the array element
+                getBuilder()->CreateStore(rvalue, elementPtr);
+            }else{
+                Value *elementPtr = getBuilder()->CreateInBoundsGEP(allocInst->getAllocatedType(), allocInst, index, "halooo");
+                getBuilder()->CreateStore(rvalue, elementPtr);
+            }
 
-            // Store the new value into the array element
-            getBuilder()->CreateStore(rvalue, elementPtr);
         }
 
         void Visit(CallStmt &stmt) override {
@@ -486,16 +507,55 @@ namespace {
             llvm::Type *type = ConvertType(varDecl->GetType());
             if (varDecl->GetIsArray()) {
 
-                int arraySize = varDecl->GetArraySize();
-                // Create an array type
-                llvm::ArrayType *arrayType = llvm::ArrayType::get(type, arraySize);
+                auto arraySizeValue = m_codegenExp.Codegen(varDecl->getVariable().getArraySizeExp());
+                auto *constArraySize = llvm::dyn_cast<llvm::ConstantInt>(arraySizeValue);
+                int64_t arraySize = 0;
+                // If the array size is constant like int a[2+3] or a[6]
+                if (constArraySize) {
+                    arraySize = constArraySize->getSExtValue();
+                    if (arraySize <= 0) {
+                        throw std::runtime_error("Array size must be > 0");
+                    }
+                    // Create an array type
+                    llvm::ArrayType *arrayType = llvm::ArrayType::get(type, arraySize);
 
-                IRBuilder<> allocaBuilder(&m_currentFunction->getEntryBlock(),
-                                          m_currentFunction->getEntryBlock().getFirstInsertionPt());
-                AllocaInst *arrayAlloc = getBuilder()->CreateAlloca(arrayType, nullptr, varDecl->GetName());
 
-                // Store the array location in the symbol table.
-                m_symbols->insert(SymbolTable::value_type(varDecl, arrayAlloc));
+                    AllocaInst *arrayAlloc = getBuilder()->CreateAlloca(arrayType, nullptr, varDecl->GetName());
+
+                    // Store the array location in the symbol table.
+                    m_symbols->insert(SymbolTable::value_type(varDecl, arrayAlloc));
+                }
+                else{
+
+                    auto zero = llvm::ConstantInt::get(arraySizeValue->getType(), 0);
+                    llvm::Value *isGreaterThanZero = getBuilder()->CreateICmpSGT(arraySizeValue, zero);
+
+                    llvm::Function *func = getBuilder()->GetInsertBlock()->getParent();
+
+                    llvm::BasicBlock *errorBlock = llvm::BasicBlock::Create(*getContext(), "error", func);
+                    llvm::BasicBlock *continueBlock = llvm::BasicBlock::Create(*getContext(), "continue", func);
+
+
+                    getBuilder()->CreateCondBr(isGreaterThanZero, continueBlock, errorBlock);
+
+
+                    getBuilder()->SetInsertPoint(errorBlock);
+                    auto errorMessage = getBuilder()->CreateGlobalStringPtr(
+                            "Error: Array size must be greater than 0\n");
+                    getBuilder()->CreateCall(m_module->getFunction("printf"),
+                                             {getBuilder()->CreateGlobalStringPtr("%s"), errorMessage});
+                    getBuilder()->CreateCall(m_module->getFunction("exit"),
+                                             llvm::ConstantInt::get(llvm::Type::getInt32Ty(*getContext()), -1));
+                    getBuilder()->CreateUnreachable();
+                    // No need to add more instructions here, as exit terminates the program
+
+                    // Normal execution resumes in the continueBlock
+                    getBuilder()->SetInsertPoint(continueBlock);
+                    // Allocation happens only if the condition is true, so it's safe here
+                    AllocaInst *arrayAlloc = getBuilder()->CreateAlloca(type, arraySizeValue, varDecl->GetName());
+                    // Store the array location in the symbol table
+                    m_symbols->insert(SymbolTable::value_type(varDecl, arrayAlloc));
+                }
             } else {
 
 

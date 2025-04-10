@@ -23,7 +23,7 @@ std::string Token::ToString() const
         case kTokenBool:      return "bool";
         case kTokenTrue:      return "true";
         case kTokenFalse:     return "false";
-        case kTokenInt:       return "int";
+        case INT:       return "int";
         case kTokenIf:        return "if";
         case kTokenElse:      return "else";
         case kTokenReturn:    return "return";

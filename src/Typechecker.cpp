@@ -158,6 +158,7 @@ class ExpTypechecker : public ExpVisitor
         }
         return true;
     }
+
 };
 
 
@@ -238,9 +239,11 @@ class StmtTypechecker : public StmtVisitor
         const std::string& varName = varDecl->GetName();
 
         if (varDecl->GetIsArray()) {
-            if (varDecl->GetArraySize() <= 0) {
-                throw TypeError(std::string("Array size must be greater than 0 for variable: ") + varName);
+            CheckExp(varDecl->getVariable().getArraySizeExp());
+            if (varDecl->getVariable().getArraySizeExp().getType() != kTypeInt) {
+                throw TypeError("Array size must be an integer");
             }
+
         }
 
         if( !m_scope->Insert( varDecl ) )
@@ -279,11 +282,9 @@ class StmtTypechecker : public StmtVisitor
             CheckStmt( *stmt );
         }
 
-        // Restore the parent scope.
         m_scope = parentScope;
     }
 
-    // Typecheck an "if" statement.
     void Visit( IfStmt& stmt ) override
     {
         CheckCondExp(stmt.getCondExp() );
@@ -292,7 +293,7 @@ class StmtTypechecker : public StmtVisitor
             CheckStmt(stmt.getElseStmt() );
     }
 
-    // Typechek a while loop.
+
     void Visit( WhileStmt& stmt ) override
     {
         CheckCondExp( stmt.GetCondExp() );
