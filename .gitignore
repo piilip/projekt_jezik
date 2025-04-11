@@ -17,6 +17,7 @@
 *.log
 *.tmp
 .cache/
+.direnv/
 
 # Ignore package manager directories
 node_modules/
