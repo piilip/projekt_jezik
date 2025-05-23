@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <iosfwd>
-#include <sstream>
 #include <string>
 #include <utility>
 

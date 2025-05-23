@@ -690,8 +690,6 @@ namespace {
             getBuilder()->SetInsertPoint(exitBlock);
         }
 
-
-
     private:
         SymbolTable *m_symbols;
         FunctionTable *m_functions;
