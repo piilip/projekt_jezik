@@ -6,7 +6,7 @@
 #include "src/Program.h"
 #include "src/TokenStream.h"
 #include "src/Typechecker.h"
-
+#include "llvm/Support/CommandLine.h"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
@@ -14,6 +14,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/raw_ostream.h>
+#include <optional>
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/Support/TargetSelect.h>
@@ -28,6 +29,8 @@
 #include <fstream>
 #include <iostream>
 #include <llvm/Passes/PassBuilder.h>
+#include <memory>
+#include <utility>
 
 #ifndef OPT_LEVEL
 /// Optimization level, which defaults to -O2.
@@ -39,13 +42,16 @@ int dumpIt = 1;
 namespace {
 using namespace llvm;
 
+int runViaJIT(std::unique_ptr<llvm::Module> module);
+void emitObjectFile(llvm::Module *module, const std::string &filename);
 void optimize(llvm::Module *module, int optLevel);
 int readFile(const char *filename, std::vector<char> *buffer);
-void dumpSyntax(const Program &program, const char *srcFilename);
-void dumpIR(llvm::Module &module, const char *srcFilename, const char *what);
+void dumpSyntax(const Program &program, const std::string &srcFilename);
+void dumpIR(llvm::Module &module, const std::string &srcFilename,
+            const char *what);
 
 // Parse and typecheck the given source code, adding definitions to the given
-// Program. First for builtins then for user code.
+// program. First for builtins then for user code.
 int parseAndTypecheck(const char *source, Program *program) {
   // Construct token stream, which encapsulates the lexer.  \see TokenStream.
   TokenStream tokens(source);
@@ -66,12 +72,34 @@ int main(int argc, const char *const *argv) {
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
 
+  std::string filename;
+  std::string outputFile;
+  bool runMode = false;
+  bool emitIR = false;
+
   // Get command-line arguments.
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <filename>" << '\n';
-    return -1;
+  for (int i = 1; i < argc; ++i) {
+    std::string arg(argv[i]);
+    if (arg == "--run") {
+      runMode = true;
+    } else if (arg == "-emit-ir") {
+      emitIR = true;
+    } else if (arg == "-o") {
+      if (i + 1 < argc) {
+        outputFile = argv[++i];
+      } else {
+        std::cerr << "-o requires an argument\n";
+        return 1;
+      }
+    } else {
+      filename = arg;
+    }
   }
-  const char *filename = argv[1];
+
+  if (filename.empty()) {
+    std::cerr << "Usage: myc <source.my> [--run | -emit-ir | -o <file>]\n";
+    return 1;
+  }
 
   std::vector<char> source;
   int status = readFile(argv[1], &source);
@@ -81,7 +109,7 @@ int main(int argc, const char *const *argv) {
   }
   const char *envVarValue = std::getenv("DUMP");
   if (envVarValue != nullptr) {
-    dumpIt = dumpIt = std::atoi(envVarValue);
+    dumpIt = std::atoi(envVarValue);
   }
 
   // Parse and typecheck builtin functions.
@@ -107,22 +135,23 @@ int main(int argc, const char *const *argv) {
     std::cout << "module je null exit";
     exit(0);
   }
+
   optimize(module.get(), OPT_LEVEL);
   dumpIR(*module, filename, "optimized");
-  // Create the JIT
-  std::string errStr;
-  ExecutionEngine *engine = EngineBuilder(std::move(module))
-                                .setErrorStr(&errStr)
-                                .setEngineKind(EngineKind::JIT)
-                                .create();
 
-  if (!engine) {
-    errs() << "Failed to construct ExecutionEngine: " << errStr << "\n";
-    return 1;
-  }
-  auto mainFunction = engine->FindFunctionNamed("main");
-  if (!mainFunction) {
-    errs() << "Function 'main' not found\n";
+  if (!outputFile.empty()) {
+    // AOT mode: emit object file
+    emitObjectFile(module.get(), outputFile);
+    return 0;
+  } else if (emitIR) {
+    // Emit IR to stdout
+    llvm::outs() << *module;
+    return 0;
+  } else if (runMode) {
+    // JIT mode: run via ExecutionEngine
+    return runViaJIT(std::move(module));
+  } else {
+    std::cerr << "No action specified. Use --run, -emit-ir, or -o <file>\n";
     return 1;
   }
 
@@ -131,9 +160,9 @@ int main(int argc, const char *const *argv) {
   // can do it here
   // std::vector<GenericValue> args(1);
   // args[0].IntVal = APInt(32, 5);
-  engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
-  std::vector<llvm::GenericValue> noargs;
-  auto result = engine->runFunction(mainFunction, noargs);
+  // engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
+  // std::vector<llvm::GenericValue> noargs;
+  // auto result = engine->runFunction(mainFunction, noargs);
   return 0;
 }
 
@@ -201,19 +230,106 @@ int readFile(const char *filename, std::vector<char> *buffer) {
   return 0;
 }
 
-void dumpSyntax(const Program &program, const char *srcFilename) {
+void dumpSyntax(const Program &program, const std::string &srcFilename) {
   if (dumpIt == 0)
     return;
-  std::string filename(std::string(srcFilename) + ".syn");
+  std::string filename(srcFilename + ".syn");
   std::ofstream out(filename);
   out << program << std::endl;
 }
-void dumpIR(llvm::Module &module, const char *srcFilename, const char *what) {
-  if (dumpIt == 0)
+void dumpIR(llvm::Module &module, const std::string &srcFilename,
+            const char *what) {
+  if (dumpIt == 0) {
     return;
-  std::string filename(std::string(srcFilename) + "." + what + ".ll");
+  }
+  const std::string filename(srcFilename + "." + what + ".ll");
   std::ofstream stream(filename);
   llvm::raw_os_ostream out(stream);
   out << module;
 }
+
+void emitObjectFile(llvm::Module *module, const std::string &filename) {
+  // Initialize target information
+  std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+  module->setTargetTriple(targetTriple);
+
+  // Look up the target
+  std::string error;
+  const auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+  if (!target) {
+    llvm::errs() << "Error: Could not find target for triple " << targetTriple
+                 << ": " << error << "\n";
+    exit(1);
+  }
+
+  // Create a target machine
+  std::string cpu = "generic";
+  std::string features = "";
+
+  TargetOptions opt;
+  auto TheTargetMachine = target->createTargetMachine(
+      targetTriple, cpu, features, opt, Reloc::PIC_);
+
+  std::unique_ptr<llvm::TargetMachine> targetMachine(
+      target->createTargetMachine(targetTriple, cpu, features, opt, Reloc::PIC_,
+                                  std::nullopt,
+                                  static_cast<CodeGenOpt::Level>(2)));
+  if (!targetMachine) {
+    llvm::errs() << "Error: Could not create target machine\n";
+    exit(1);
+  }
+
+  // Open the output file
+  std::error_code ec;
+  llvm::raw_fd_ostream dest(filename, ec, llvm::sys::fs::OF_None);
+  if (ec) {
+    llvm::errs() << "Error: Could not open file " << filename << ": "
+                 << ec.message() << "\n";
+    exit(1);
+  }
+
+  // Set up the pass manager to emit object code
+  llvm::legacy::PassManager passManager;
+  if (targetMachine->addPassesToEmitFile(passManager, dest, nullptr,
+                                         llvm::CGFT_ObjectFile)) {
+    llvm::errs() << "Error: Target machine cannot emit an object file\n";
+    exit(1);
+  }
+
+  // Run the passes to emit the object file
+  passManager.run(*module);
+  dest.flush();
+
+  // Close the file
+  dest.close();
+}
+
+int runViaJIT(std::unique_ptr<llvm::Module> module) {
+  std::string errStr;
+  auto *engine = llvm::EngineBuilder(std::move(module))
+                     .setErrorStr(&errStr)
+                     .setEngineKind(llvm::EngineKind::JIT)
+                     .create();
+
+  if (!engine) {
+    llvm::errs() << "JIT init failed: " << errStr << "\n";
+    return 1;
+  }
+
+  auto *mainFunc = engine->FindFunctionNamed("main");
+  if (!mainFunc) {
+    llvm::errs() << "Function 'main' not found\n";
+    return 1;
+  }
+
+  engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
+  // If we want to pass the arguments from the command line to the function we
+  // can do it here
+  // std::vector<GenericValue> args(1);
+  // args[0].IntVal = APInt(32, 5);
+  std::vector<llvm::GenericValue> noargs;
+  llvm::GenericValue result = engine->runFunction(mainFunc, noargs);
+  return 0;
+}
+
 } // namespace
