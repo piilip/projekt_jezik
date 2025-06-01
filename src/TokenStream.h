@@ -26,10 +26,9 @@ public:
   }
 
   void printCurrentTokenWithLocation() const {
-    std::cout << "Token: " << currentToken.ToString() << " "
-              << "'" << Token::typeToString(currentToken.getType()) << "'"
-              << " at line " << currentToken.getLine() << ", column "
-              << currentToken.getColumn() << '\n';
+    std::cout << currentToken.getLine() << ":" << currentToken.getColumn()
+              << "\t" << currentToken.ToString() << "\t'"
+              << Token::typeToString(currentToken.getType()) << "'\n";
   }
 
   // Consumes the stream

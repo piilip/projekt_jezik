@@ -225,9 +225,12 @@ int readFile(const char *filename, std::vector<char> *buffer) {
 void dumpSyntax(const Program &program, const std::string &srcFilename) {
   if (dumpIt == 0)
     return;
-  std::string filename(srcFilename + ".syn");
-  std::ofstream out(filename);
-  out << program << std::endl;
+  // std::string filename(srcFilename + ".syn");
+  // std::ofstream out(filename);
+  // out << program << std::endl;
+  std::string astFilename(srcFilename + ".ast");
+  std::ofstream astOut(astFilename);
+  printAST(astOut, program);
 }
 void dumpIR(llvm::Module &module, const std::string &srcFilename,
             const char *what) {

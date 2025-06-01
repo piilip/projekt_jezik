@@ -4,174 +4,296 @@
 #include "Program.h"
 #include "Stmt.h"
 #include "Visitor.h"
+#include <iomanip>
 
-class ExpPrinter : public ExpVisitor {
+class ASTExpPrinter : public ExpVisitor {
 public:
-  ExpPrinter(std::ostream &out) : m_out(out) {}
+  ASTExpPrinter(std::ostream &out, int indent = 0)
+      : m_out(out), m_indent(indent) {}
 
   void Print(const Exp &exp) { const_cast<Exp &>(exp).Dispatch(*this); }
 
   void *Visit(ArrayAccessExp &exp) override {
-    m_out << exp.getName() << '[' << *(exp.getIndexExp()) << "]";
+    printIndent();
+    m_out << "ArrayAccessExp:" << std::endl;
+
+    printIndent();
+    m_out << "├─ array: " << exp.getName() << std::endl;
+
+    printIndent();
+    m_out << "└─ index:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(*(exp.getIndexExp()));
+
     return nullptr;
   }
 
   void *Visit(BoolExp &exp) override {
-    m_out << (exp.getValue() ? "true" : "false");
+    printIndent();
+    m_out << "BoolExp: " << (exp.getValue() ? "true" : "false") << std::endl;
     return nullptr;
   }
 
   void *Visit(IntExp &exp) override {
-    m_out << exp.getValue();
+    printIndent();
+    m_out << "IntExp: " << exp.getValue() << std::endl;
     return nullptr;
   }
 
   void *Visit(FloatExp &exp) override {
-    m_out << exp.getValue();
+    printIndent();
+    m_out << "FloatExp: " << exp.getValue() << std::endl;
     return nullptr;
   }
 
   void *Visit(VarExp &exp) override {
-    m_out << exp.getName();
+    printIndent();
+    m_out << "VarExp: " << exp.getName() << std::endl;
     return nullptr;
   }
 
   void *Visit(CallExp &exp) override {
-    m_out << exp.getFuncName() << '(';
-    for (size_t i = 0; i < exp.getArgs().size(); ++i) {
-      if (i > 0)
-        m_out << ", ";
-      exp.getArgs()[i]->Dispatch(*this);
+    printIndent();
+    m_out << "CallExp:" << std::endl;
+
+    printIndent();
+    m_out << "├─ function: " << exp.getFuncName() << std::endl;
+
+    if (!exp.getArgs().empty()) {
+      printIndent();
+      m_out << "└─ arguments:" << std::endl;
+
+      for (size_t i = 0; i < exp.getArgs().size(); ++i) {
+        printIndent();
+        m_out << "   ├─ arg[" << i << "]:" << std::endl;
+        ASTExpPrinter(m_out, m_indent + 2).Print(*(exp.getArgs()[i]));
+      }
     }
-    m_out << ')';
+
     return nullptr;
   }
 
 private:
-  std::ostream &m_out;
-};
-
-class StmtPrinter : public StmtVisitor {
-public:
-  explicit StmtPrinter(std::ostream &out) : m_out(out) {}
-  void printForLoopAssignStmt(const Stmt &stmt) {
-    if (typeid(stmt) == typeid(AssignStmt)) {
-      const auto &assignStmt = dynamic_cast<const AssignStmt &>(stmt);
-      m_out << assignStmt.GetVarName() << " = " << assignStmt.GetRvalue();
-    } else if (typeid(stmt) == typeid(DeclStmt)) {
-      const auto &declStmt = dynamic_cast<const DeclStmt &>(stmt);
-      m_out << *declStmt.GetVarDecl();
-      if (declStmt.HasInitExp()) {
-        m_out << " = " << declStmt.GetInitExp();
-      }
-    } else {
-      Print(stmt);
+  void printIndent() {
+    for (int i = 0; i < m_indent; ++i) {
+      m_out << "  ";
     }
   }
 
-  void Visit(ArrayAssignStmt &stmt) override {
-    m_out << stmt.GetVarName() << '[' << *(stmt.getIndexExp())
-          << "] = " << stmt.GetRvalue() << ';';
-  }
+  std::ostream &m_out;
+  int m_indent;
+};
+
+class ASTStmtPrinter : public StmtVisitor {
+public:
+  explicit ASTStmtPrinter(std::ostream &out, int indent = 0)
+      : m_out(out), m_indent(indent) {}
 
   void Print(const Stmt &stmt) { const_cast<Stmt &>(stmt).Dispatch(*this); }
 
-  void Visit(CallStmt &stmt) override { m_out << stmt.GetCallExp() << ';'; }
+  void Visit(ArrayAssignStmt &stmt) override {
+    printIndent();
+    m_out << "ArrayAssignStmt:" << std::endl;
+
+    printIndent();
+    m_out << "├─ array: " << stmt.GetVarName() << std::endl;
+
+    printIndent();
+    m_out << "├─ index:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(*(stmt.getIndexExp()));
+
+    printIndent();
+    m_out << "└─ value:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetRvalue());
+  }
+
+  void Visit(CallStmt &stmt) override {
+    printIndent();
+    m_out << "CallStmt:" << std::endl;
+
+    printIndent();
+    m_out << "└─ expression:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetCallExp());
+  }
 
   void Visit(AssignStmt &stmt) override {
-    m_out << stmt.GetVarName() << " = " << stmt.GetRvalue() << ';';
+    printIndent();
+    m_out << "AssignStmt:" << std::endl;
+
+    printIndent();
+    m_out << "├─ variable: " << stmt.GetVarName() << std::endl;
+
+    printIndent();
+    m_out << "└─ value:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetRvalue());
   }
 
   void Visit(DeclStmt &stmt) override {
-    m_out << *stmt.GetVarDecl();
-    if (stmt.HasInitExp())
-      m_out << " = " << stmt.GetInitExp();
-    m_out << ';';
+    printIndent();
+    m_out << "DeclStmt:" << std::endl;
+
+    printIndent();
+    m_out << "├─ declaration: " << *(stmt.GetVarDecl()) << std::endl;
+
+    if (stmt.HasInitExp()) {
+      printIndent();
+      m_out << "└─ initializer:" << std::endl;
+      ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetInitExp());
+    }
   }
 
   void Visit(ReturnStmt &stmt) override {
-    m_out << "return " << stmt.GetExp() << ';';
+    printIndent();
+    m_out << "ReturnStmt:" << std::endl;
+
+    printIndent();
+    m_out << "└─ expression:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetExp());
   }
 
   void Visit(SeqStmt &seq) override {
-    m_out << "{" << std::endl;
-    for (const StmtPtr &stmt : seq.Get()) {
-      Print(*stmt);
-      m_out << std::endl;
+    printIndent();
+    m_out << "SeqStmt:" << std::endl;
+
+    const auto &stmts = seq.Get();
+    for (size_t i = 0; i < stmts.size(); ++i) {
+      printIndent();
+      if (i == stmts.size() - 1) {
+        m_out << "└─ stmt[" << i << "]:" << std::endl;
+      } else {
+        m_out << "├─ stmt[" << i << "]:" << std::endl;
+      }
+      ASTStmtPrinter(m_out, m_indent + 1).Print(*(stmts[i]));
     }
-    m_out << "}";
   }
 
   void Visit(IfStmt &stmt) override {
-    m_out << "if (" << stmt.getCondExp() << ")" << std::endl;
-    Print(stmt.getThenStmt());
+    printIndent();
+    m_out << "IfStmt:" << std::endl;
+
+    printIndent();
+    m_out << "├─ condition:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.getCondExp());
+
+    printIndent();
+    m_out << "├─ then:" << std::endl;
+    ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.getThenStmt());
+
     if (stmt.hasElseStmt()) {
-      m_out << std::endl << "else" << std::endl;
-      Print(stmt.getElseStmt());
+      printIndent();
+      m_out << "└─ else:" << std::endl;
+      ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.getElseStmt());
     }
   }
 
   void Visit(WhileStmt &stmt) override {
-    m_out << "while (" << stmt.GetCondExp() << ")" << std::endl;
-    Print(stmt.GetBodyStmt());
+    printIndent();
+    m_out << "WhileStmt:" << std::endl;
+
+    printIndent();
+    m_out << "├─ condition:" << std::endl;
+    ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetCondExp());
+
+    printIndent();
+    m_out << "└─ body:" << std::endl;
+    ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.GetBodyStmt());
   }
 
   void Visit(ForStmt &stmt) override {
-    m_out << "for (";
+    printIndent();
+    m_out << "ForStmt:" << std::endl;
 
-    // Print initialization statement if present
     if (stmt.HasInitStmt()) {
-      printForLoopAssignStmt(stmt.GetInitStmt());
+      printIndent();
+      m_out << "├─ init:" << std::endl;
+      ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.GetInitStmt());
     }
-    m_out << "; ";
 
-    // Print condition expression if present
     if (stmt.HasCondExp()) {
-      m_out << stmt.GetCondExp();
+      printIndent();
+      m_out << "├─ condition:" << std::endl;
+      ASTExpPrinter(m_out, m_indent + 1).Print(stmt.GetCondExp());
     }
-    m_out << "; ";
 
-    // Print update expression if present
     if (stmt.HasUpdateStmt()) {
-      printForLoopAssignStmt(stmt.GetUpdateStmt());
+      printIndent();
+      m_out << "├─ update:" << std::endl;
+      ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.GetUpdateStmt());
     }
-    m_out << ")" << std::endl;
-    m_out << ")" << std::endl;
 
-    Print(stmt.GetBodyStmt());
+    printIndent();
+    m_out << "└─ body:" << std::endl;
+    ASTStmtPrinter(m_out, m_indent + 1).Print(stmt.GetBodyStmt());
   }
 
 private:
+  void printIndent() {
+    for (int i = 0; i < m_indent; ++i) {
+      m_out << "  ";
+    }
+  }
+
   std::ostream &m_out;
+  int m_indent;
 };
 
-std::ostream &operator<<(std::ostream &out, const Exp &exp) {
-  ExpPrinter(out).Print(exp);
+// AST-style output operators
+std::ostream &printAST(std::ostream &out, const Exp &exp) {
+  ASTExpPrinter(out).Print(exp);
   return out;
 }
 
-std::ostream &operator<<(std::ostream &out, const Stmt &stmt) {
-  StmtPrinter(out).Print(stmt);
+std::ostream &printAST(std::ostream &out, const Stmt &stmt) {
+  ASTStmtPrinter(out).Print(stmt);
   return out;
 }
 
-std::ostream &operator<<(std::ostream &out, const FuncDef &def) {
-  out << toString(def.getReturnType()) << ' ' << def.getName() << '(';
-  for (size_t i = 0; i < def.getParams().size(); ++i) {
-    if (i > 0)
-      out << ", ";
-    out << *def.getParams()[i];
+std::ostream &printAST(std::ostream &out, const FuncDef &def) {
+  out << "FuncDef:" << std::endl;
+  out << "├─ return_type: " << toString(def.getReturnType()) << std::endl;
+  out << "├─ name: " << def.getName() << std::endl;
+
+  if (!def.getParams().empty()) {
+    out << "├─ parameters:" << std::endl;
+    for (size_t i = 0; i < def.getParams().size(); ++i) {
+      out << "│  ├─ param[" << i << "]: " << *(def.getParams()[i]) << std::endl;
+    }
   }
-  out << ')' << std::endl;
-  if (def.hasBody())
-    out << def.GetBody();
+
+  if (def.hasBody()) {
+    out << "└─ body:" << std::endl;
+    ASTStmtPrinter(out, 1).Print(def.GetBody());
+  }
+
   return out;
 }
 
-std::ostream &operator<<(std::ostream &out, const Program &program) {
-  for (const FuncDefPtr &funcDef : program.GetFunctions()) {
-    if (funcDef->hasBody())
-      out << *funcDef << std::endl;
+std::ostream &printAST(std::ostream &out, const Program &program) {
+  out << "Program:" << std::endl;
+
+  const auto &functions = program.GetFunctions();
+  for (size_t i = 0; i < functions.size(); ++i) {
+    if (functions[i]->hasBody()) {
+      if (i == functions.size() - 1) {
+        out << "└─ function[" << i << "]:" << std::endl;
+      } else {
+        out << "├─ function[" << i << "]:" << std::endl;
+      }
+
+      // Indent the function definition
+      std::stringstream funcStream;
+      printAST(funcStream, *(functions[i]));
+
+      std::string line;
+      bool first = true;
+      while (std::getline(funcStream, line)) {
+        if (!first) {
+          out << "  ";
+        }
+        out << line << std::endl;
+        first = false;
+      }
+    }
   }
+
   return out;
 }

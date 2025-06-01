@@ -392,7 +392,7 @@ int ParseProgram(TokenStream &tokens, Program *program) {
     } while (*tokens != kTokenEOF);
     return 0;
   } catch (const ParseError &error) {
-    std::cerr << "Error: " << error.what() << std::endl;
+    std::cerr << "Parser Error: " << error.what() << std::endl;
     return -1;
   }
 }
