@@ -41,12 +41,10 @@ ExpPtr parsePrimaryExp(TokenStream &tokens) {
   // dereferences, then increments the TokenStream.)
   Token token(*tokens++);
   switch (token.getType()) {
-  // Boolean constant?
   case kTokenTrue:
     return std::make_unique<BoolExp>(true);
   case kTokenFalse:
     return std::make_unique<BoolExp>(false);
-    // Integer constant?
   case kTokenIntNum:
     return std::make_unique<IntExp>(token.getNum<int>());
   case kTokenFPNum:

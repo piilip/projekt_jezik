@@ -3,6 +3,7 @@
 #include "FuncDef.h"
 #include "Program.h"
 #include "Stmt.h"
+#include "Type.h"
 #include "Visitor.h"
 #include <iomanip>
 
@@ -129,10 +130,27 @@ public:
 
   void Visit(DeclStmt &stmt) override {
     printIndent();
-    m_out << "DeclStmt:" << std::endl;
+    m_out << "DeclStmt:" << '\n';
+
+    const auto *var_decl = stmt.GetVarDecl();
+    printIndent();
+    m_out << "├─ type:" << toString(var_decl->GetType());
+    if (var_decl->GetIsArray()) {
+      m_out << " (array)" << '\n';
+    } else {
+      m_out << '\n';
+    }
 
     printIndent();
-    m_out << "├─ declaration: " << *(stmt.GetVarDecl()) << std::endl;
+    m_out << "├─ name: " << var_decl->GetName() << '\n';
+
+    // Handle array declarations with size expression
+    if (var_decl->GetIsArray()) {
+      printIndent();
+      m_out << "├─ array_size:" << std::endl;
+      ASTExpPrinter(m_out, m_indent + 1)
+          .Print(var_decl->getVariable().getArraySizeExp());
+    }
 
     if (stmt.HasInitExp()) {
       printIndent();
@@ -269,14 +287,14 @@ std::ostream &printAST(std::ostream &out, const FuncDef &def) {
 
 std::ostream &printAST(std::ostream &out, const Program &program) {
   out << "Program:" << std::endl;
-
+  constexpr int builtin_num = 55;
   const auto &functions = program.GetFunctions();
   for (size_t i = 0; i < functions.size(); ++i) {
     if (functions[i]->hasBody()) {
       if (i == functions.size() - 1) {
-        out << "└─ function[" << i << "]:" << std::endl;
+        out << "└─ function[" << i - builtin_num << "]:" << std::endl;
       } else {
-        out << "├─ function[" << i << "]:" << std::endl;
+        out << "├─ function[" << i - builtin_num << "]:" << std::endl;
       }
 
       // Indent the function definition
