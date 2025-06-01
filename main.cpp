@@ -52,8 +52,8 @@ void dumpIR(llvm::Module &module, const std::string &srcFilename,
 
 // Parse and typecheck the given source code, adding definitions to the given
 // program. First for builtins then for user code.
-int parseAndTypecheck(const char *source, Program *program) {
-  // Construct token stream, which encapsulates the lexer.  \see TokenStream.
+int ParseAndTypecheck(const char *source, Program *program) {
+  // Construct token stream, which encapsulates the lexer.
   TokenStream tokens(source);
 
   // Parse the token stream into a program.
@@ -72,34 +72,19 @@ int main(int argc, const char *const *argv) {
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
 
-  std::string filename;
-  std::string outputFile;
-  bool runMode = false;
-  bool emitIR = false;
+  llvm::cl::opt<std::string> filename(
+      llvm::cl::Positional, llvm::cl::desc("<input file>"), llvm::cl::Required);
 
-  // Get command-line arguments.
-  for (int i = 1; i < argc; ++i) {
-    std::string arg(argv[i]);
-    if (arg == "--run") {
-      runMode = true;
-    } else if (arg == "-emit-ir") {
-      emitIR = true;
-    } else if (arg == "-o") {
-      if (i + 1 < argc) {
-        outputFile = argv[++i];
-      } else {
-        std::cerr << "-o requires an argument\n";
-        return 1;
-      }
-    } else {
-      filename = arg;
-    }
-  }
+  llvm::cl::opt<std::string> outputFile(
+      "o", llvm::cl::desc("Specify output filename"),
+      llvm::cl::value_desc("filename"));
 
-  if (filename.empty()) {
-    std::cerr << "Usage: myc <source.my> [--run | -emit-ir | -o <file>]\n";
-    return 1;
-  }
+  llvm::cl::opt<bool> run_mode("run",
+                               llvm::cl::desc("JIT and run the program"));
+  llvm::cl::opt<bool> emit_ir("emit-ir", llvm::cl::desc("Emit LLVM IR only"));
+  llvm::cl::opt<bool> dump_tokens("dump-tokens",
+                                  llvm::cl::desc("Dump tokens and exit"));
+  llvm::cl::ParseCommandLineOptions(argc, argv, "My Compiler\n");
 
   std::vector<char> source;
   int status = readFile(argv[1], &source);
@@ -107,6 +92,13 @@ int main(int argc, const char *const *argv) {
     std::cerr << "Unable to open input file: " << argv[1] << '\n';
     return status;
   }
+
+  if (dump_tokens) {
+    TokenStream tokens((source.data()));
+    tokens.printAllTokens();
+    return 0;
+  }
+
   const char *envVarValue = std::getenv("DUMP");
   if (envVarValue != nullptr) {
     dumpIt = std::atoi(envVarValue);
@@ -114,11 +106,11 @@ int main(int argc, const char *const *argv) {
 
   // Parse and typecheck builtin functions.
   ProgramPtr program(new Program);
-  status = parseAndTypecheck(GetBuiltins(), program.get());
+  status = ParseAndTypecheck(GetBuiltins(), program.get());
   assert(status == 0);
 
   // Parse and typecheck user source code.
-  status = parseAndTypecheck(source.data(), program.get());
+  status = ParseAndTypecheck(source.data(), program.get());
   if (status)
     return status;
   dumpSyntax(*program, filename);
@@ -143,11 +135,11 @@ int main(int argc, const char *const *argv) {
     // AOT mode: emit object file
     emitObjectFile(module.get(), outputFile);
     return 0;
-  } else if (emitIR) {
+  } else if (emit_ir) {
     // Emit IR to stdout
     llvm::outs() << *module;
     return 0;
-  } else if (runMode) {
+  } else if (run_mode) {
     // JIT mode: run via ExecutionEngine
     return runViaJIT(std::move(module));
   } else {
