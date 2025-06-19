@@ -550,7 +550,6 @@ public:
         // Store the array location in the symbol table.
         m_symbols->insert(SymbolTable::value_type(varDecl, arrayAlloc));
       } else {
-
         auto zero = llvm::ConstantInt::get(arraySizeValue->getType(), 0);
         llvm::Value *isGreaterThanZero =
             getBuilder()->CreateICmpSGT(arraySizeValue, zero);

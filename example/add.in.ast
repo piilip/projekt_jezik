@@ -1,0 +1,44 @@
+Program:
+├─ function[55]:
+FuncDef:
+  ├─ return_type: int
+  ├─ name: add
+  ├─ parameters:
+  │  ├─ param[0]: int a
+  │  ├─ param[1]: int b
+  └─ body:
+    SeqStmt:
+    └─ stmt[0]:
+      ReturnStmt:
+      └─ expression:
+        CallExp:
+        ├─ function: +
+        └─ arguments:
+           ├─ arg[0]:
+            VarExp: a
+           ├─ arg[1]:
+            VarExp: b
+└─ function[56]:
+FuncDef:
+  ├─ return_type: int
+  ├─ name: main
+  └─ body:
+    SeqStmt:
+    ├─ stmt[0]:
+      CallStmt:
+      └─ expression:
+        CallExp:
+        ├─ function: print
+        └─ arguments:
+           ├─ arg[0]:
+            CallExp:
+            ├─ function: add
+            └─ arguments:
+               ├─ arg[0]:
+                IntExp: 5
+               ├─ arg[1]:
+                IntExp: 6
+    └─ stmt[1]:
+      ReturnStmt:
+      └─ expression:
+        IntExp: 0

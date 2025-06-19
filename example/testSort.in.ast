@@ -1,0 +1,347 @@
+Program:
+└─ function[0]:
+FuncDef:
+  ├─ return_type: int
+  ├─ name: main
+  ├─ parameters:
+  │  ├─ param[0]: int gf
+  └─ body:
+    SeqStmt:
+    ├─ stmt[0]:
+      DeclStmt:
+      ├─ type:int
+      ├─ name: n
+      └─ initializer:
+        IntExp: 14
+    ├─ stmt[1]:
+      DeclStmt:
+      ├─ type:int
+      ├─ name: i
+      └─ initializer:
+        IntExp: 0
+    ├─ stmt[2]:
+      DeclStmt:
+      ├─ type:int (array)
+      ├─ name: arr
+      ├─ array_size:
+        IntExp: -1
+    ├─ stmt[3]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        VarExp: i
+      └─ value:
+        VarExp: i
+    ├─ stmt[4]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 0
+      └─ value:
+        IntExp: 434
+    ├─ stmt[5]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 1
+      └─ value:
+        IntExp: 34
+    ├─ stmt[6]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 2
+      └─ value:
+        IntExp: -3
+    ├─ stmt[7]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 3
+      └─ value:
+        IntExp: -155
+    ├─ stmt[8]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 4
+      └─ value:
+        IntExp: 3434
+    ├─ stmt[9]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 5
+      └─ value:
+        IntExp: -34
+    ├─ stmt[10]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 6
+      └─ value:
+        IntExp: 34
+    ├─ stmt[11]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 7
+      └─ value:
+        IntExp: -155
+    ├─ stmt[12]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 8
+      └─ value:
+        IntExp: 434
+    ├─ stmt[13]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 9
+      └─ value:
+        IntExp: 34
+    ├─ stmt[14]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 10
+      └─ value:
+        IntExp: -3
+    ├─ stmt[15]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 11
+      └─ value:
+        IntExp: -155
+    ├─ stmt[16]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 12
+      └─ value:
+        IntExp: 3434
+    ├─ stmt[17]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 13
+      └─ value:
+        IntExp: -34
+    ├─ stmt[18]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 14
+      └─ value:
+        IntExp: 34
+    ├─ stmt[19]:
+      ArrayAssignStmt:
+      ├─ array: arr
+      ├─ index:
+        IntExp: 15
+      └─ value:
+        IntExp: -155
+    ├─ stmt[20]:
+      CallStmt:
+      └─ expression:
+        CallExp:
+        ├─ function: print
+        └─ arguments:
+           ├─ arg[0]:
+            ArrayAccessExp:
+            ├─ array: arr
+            └─ index:
+              VarExp: i
+    ├─ stmt[21]:
+      DeclStmt:
+      ├─ type:int
+      ├─ name: temp
+      └─ initializer:
+        IntExp: 0
+    ├─ stmt[22]:
+      DeclStmt:
+      ├─ type:int
+      ├─ name: j
+      └─ initializer:
+        IntExp: 0
+    ├─ stmt[23]:
+      AssignStmt:
+      ├─ variable: i
+      └─ value:
+        IntExp: 0
+    ├─ stmt[24]:
+      WhileStmt:
+      ├─ condition:
+        CallExp:
+        ├─ function: <
+        └─ arguments:
+           ├─ arg[0]:
+            VarExp: i
+           ├─ arg[1]:
+            CallExp:
+            ├─ function: -
+            └─ arguments:
+               ├─ arg[0]:
+                VarExp: n
+               ├─ arg[1]:
+                IntExp: 1
+      └─ body:
+        SeqStmt:
+        ├─ stmt[0]:
+          AssignStmt:
+          ├─ variable: j
+          └─ value:
+            IntExp: 0
+        ├─ stmt[1]:
+          WhileStmt:
+          ├─ condition:
+            CallExp:
+            ├─ function: <
+            └─ arguments:
+               ├─ arg[0]:
+                VarExp: j
+               ├─ arg[1]:
+                CallExp:
+                ├─ function: -
+                └─ arguments:
+                   ├─ arg[0]:
+                    CallExp:
+                    ├─ function: -
+                    └─ arguments:
+                       ├─ arg[0]:
+                        VarExp: n
+                       ├─ arg[1]:
+                        IntExp: 1
+                   ├─ arg[1]:
+                    VarExp: i
+          └─ body:
+            SeqStmt:
+            ├─ stmt[0]:
+              IfStmt:
+              ├─ condition:
+                CallExp:
+                ├─ function: >
+                └─ arguments:
+                   ├─ arg[0]:
+                    ArrayAccessExp:
+                    ├─ array: arr
+                    └─ index:
+                      VarExp: j
+                   ├─ arg[1]:
+                    ArrayAccessExp:
+                    ├─ array: arr
+                    └─ index:
+                      CallExp:
+                      ├─ function: +
+                      └─ arguments:
+                         ├─ arg[0]:
+                          VarExp: j
+                         ├─ arg[1]:
+                          IntExp: 1
+              ├─ then:
+                SeqStmt:
+                ├─ stmt[0]:
+                  AssignStmt:
+                  ├─ variable: temp
+                  └─ value:
+                    ArrayAccessExp:
+                    ├─ array: arr
+                    └─ index:
+                      VarExp: j
+                ├─ stmt[1]:
+                  ArrayAssignStmt:
+                  ├─ array: arr
+                  ├─ index:
+                    VarExp: j
+                  └─ value:
+                    ArrayAccessExp:
+                    ├─ array: arr
+                    └─ index:
+                      CallExp:
+                      ├─ function: +
+                      └─ arguments:
+                         ├─ arg[0]:
+                          VarExp: j
+                         ├─ arg[1]:
+                          IntExp: 1
+                └─ stmt[2]:
+                  ArrayAssignStmt:
+                  ├─ array: arr
+                  ├─ index:
+                    CallExp:
+                    ├─ function: +
+                    └─ arguments:
+                       ├─ arg[0]:
+                        VarExp: j
+                       ├─ arg[1]:
+                        IntExp: 1
+                  └─ value:
+                    VarExp: temp
+            └─ stmt[1]:
+              AssignStmt:
+              ├─ variable: j
+              └─ value:
+                CallExp:
+                ├─ function: +
+                └─ arguments:
+                   ├─ arg[0]:
+                    VarExp: j
+                   ├─ arg[1]:
+                    IntExp: 1
+        └─ stmt[2]:
+          AssignStmt:
+          ├─ variable: i
+          └─ value:
+            CallExp:
+            ├─ function: +
+            └─ arguments:
+               ├─ arg[0]:
+                VarExp: i
+               ├─ arg[1]:
+                IntExp: 1
+    ├─ stmt[25]:
+      AssignStmt:
+      ├─ variable: i
+      └─ value:
+        IntExp: 0
+    ├─ stmt[26]:
+      WhileStmt:
+      ├─ condition:
+        CallExp:
+        ├─ function: <
+        └─ arguments:
+           ├─ arg[0]:
+            VarExp: i
+           ├─ arg[1]:
+            VarExp: n
+      └─ body:
+        SeqStmt:
+        ├─ stmt[0]:
+          CallStmt:
+          └─ expression:
+            CallExp:
+            ├─ function: print
+            └─ arguments:
+               ├─ arg[0]:
+                ArrayAccessExp:
+                ├─ array: arr
+                └─ index:
+                  VarExp: i
+        └─ stmt[1]:
+          AssignStmt:
+          ├─ variable: i
+          └─ value:
+            CallExp:
+            ├─ function: +
+            └─ arguments:
+               ├─ arg[0]:
+                VarExp: i
+               ├─ arg[1]:
+                IntExp: 1
+    └─ stmt[27]:
+      ReturnStmt:
+      └─ expression:
+        IntExp: 0

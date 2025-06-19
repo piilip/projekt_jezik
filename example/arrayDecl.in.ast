@@ -1,0 +1,19 @@
+Program:
+└─ function[55]:
+FuncDef:
+  ├─ return_type: int
+  ├─ name: main
+  └─ body:
+    SeqStmt:
+    ├─ stmt[0]:
+      DeclStmt:
+      ├─ declaration: int a
+      └─ initializer:
+        IntExp: 2
+    ├─ stmt[1]:
+      DeclStmt:
+      ├─ declaration: int b[
+    └─ stmt[2]:
+      ReturnStmt:
+      └─ expression:
+        IntExp: 0
