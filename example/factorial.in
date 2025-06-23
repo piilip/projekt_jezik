@@ -6,8 +6,8 @@ int fact(int x)
         return x * fact(x - 1);
 }
 
-int main(int x)
+int main()
 {
     int x=6;
-    print(fact(5));
+    print(fact(x));
 }

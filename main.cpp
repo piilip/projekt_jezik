@@ -6,15 +6,15 @@
 #include "src/Program.h"
 #include "src/TokenStream.h"
 #include "src/Typechecker.h"
-
-
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/PassManager.h>
+#include "llvm/Support/CommandLine.h"
 #include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/raw_ostream.h>
+#include <optional>
 
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/Support/TargetSelect.h>
@@ -29,189 +29,303 @@
 #include <fstream>
 #include <iostream>
 #include <llvm/Passes/PassBuilder.h>
-
-#ifndef OPT_LEVEL
-/// Optimization level, which defaults to -O2.
-#define OPT_LEVEL 2
-#endif
+#include <memory>
+#include <utility>
 
 int dumpIt = 1;
 
 namespace {
-    using namespace llvm;
+using namespace llvm;
 
-    void optimize( llvm::Module* module, int optLevel );
-    int  readFile( const char* filename, std::vector<char>* buffer );
-    void dumpSyntax( const Program& program, const char* srcFilename );
-    void dumpIR( llvm::Module& module, const char* srcFilename, const char* what );
+int runViaJIT(std::unique_ptr<llvm::Module> module);
+void emitObjectFile(llvm::Module *module, const std::string &filename);
+void optimize(llvm::Module *module, int optLevel);
+int readFile(const char *filename, std::vector<char> *buffer);
+void dumpSyntax(const Program &program, const std::string &srcFilename);
+void dumpIR(llvm::Module &module, const std::string &srcFilename,
+            const char *what);
 
-    // Parse and typecheck the given source code, adding definitions to the given Program.
-    // First for builtins then for user code.
-    int parseAndTypecheck( const char* source, Program* program )
-    {
-        // Construct token stream, which encapsulates the lexer.  \see TokenStream.
-        TokenStream tokens( source );
+// Parse and typecheck the given source code, adding definitions to the given
+// program. First for builtins then for user code.
+int ParseAndTypecheck(const char *source, Program *program) {
+  // Construct token stream, which encapsulates the lexer.
+  TokenStream tokens(source);
 
-        // Parse the token stream into a program.
-        int status = ParseProgram( tokens, program );
-
-        // If the parser succeeded, typecheck the program.
-        if( status == 0 )
-            status = Typecheck( *program );
-        return status;
-    }
-
+  // Parse the token stream into a program.
+  int status = ParseProgram(tokens, program);
+  dumpSyntax(*program, "test123");
+  // If the parser succeeded, typecheck the program.
+  if (status == 0)
+    status = Typecheck(*program);
+  return status;
 }
 
+} // namespace
 
-int main( int argc, const char* const* argv ) {
-    InitializeNativeTarget();
-    InitializeNativeTargetAsmPrinter();
-    InitializeNativeTargetAsmParser();
+int main(int argc, const char *const *argv) {
+  InitializeNativeTarget();
+  InitializeNativeTargetAsmPrinter();
+  InitializeNativeTargetAsmParser();
 
-    // Get command-line arguments.
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
-        return -1;
-    }
-    const char *filename = argv[1];
+  llvm::cl::opt<std::string> filename(
+      llvm::cl::Positional, llvm::cl::desc("<input file>"), llvm::cl::Required);
 
-    std::vector<char> source;
-    int status = readFile(argv[1], &source);
-    if (status != 0) {
-        std::cerr << "Unable to open input file: " << argv[1] << std::endl;
-        return status;
-    }
-    const char* envVarValue = std::getenv("DUMP");
-    if (envVarValue != nullptr) {
-        dumpIt = dumpIt = std::atoi(envVarValue);
-}
+  llvm::cl::opt<std::string> outputFile(
+      "o", llvm::cl::desc("Specify output filename"),
+      llvm::cl::value_desc("filename"));
 
-    // Parse and typecheck builtin functions.
-    ProgramPtr program(new Program);
-    status = parseAndTypecheck(GetBuiltins(), program.get());
-    assert(status == 0);
+    llvm::cl::opt<int> optimizationLevel(
+            "O", llvm::cl::desc("Optimization level (0-3)"),
+            llvm::cl::value_desc("level"), llvm::cl::init(2),
+            llvm::cl::Prefix, llvm::cl::ValueOptional);
 
-    // Parse and typecheck user source code.
-    status = parseAndTypecheck(source.data(), program.get());
-    if (status)
-        return status;
-    dumpSyntax(*program, filename);
-
-    // Generate LLVM IR.
-    llvm::LLVMContext context;
-    std::unique_ptr<llvm::Module> module(Codegen(&context, *program));
-    dumpIR(*module, filename, "initial");
+  llvm::cl::opt<bool> run_mode("run",
+                               llvm::cl::desc("JIT and run the program"));
+  llvm::cl::opt<bool> emit_ir("emit-ir", llvm::cl::desc("Emit LLVM IR only"));
+  llvm::cl::opt<bool> dump_tokens("dump-tokens",
+                                  llvm::cl::desc("Dump tokens and exit"));
 
 
+  llvm::cl::ParseCommandLineOptions(argc, argv, "My Compiler\n");
 
-    // Verify the module, which catches malformed instructions and type errors.
-    assert(!verifyModule(*module, &llvm::errs()));
+  std::vector<char> source;
+  int status = readFile(argv[1], &source);
+  if (status != 0) {
+    std::cerr << "Unable to open input file: " << argv[1] << '\n';
+    return status;
+  }
 
-    if(module.get() == nullptr){
-        std::cout << "module je null exit";
-        exit(0);
-    }
-    optimize(module.get(), OPT_LEVEL);
-    dumpIR(*module, filename, "optimized");
-    // Create the JIT
-    std::string errStr;
-    ExecutionEngine *engine = EngineBuilder(std::move(module))
-            .setErrorStr(&errStr)
-            .setEngineKind(EngineKind::JIT)
-            .create();
-
-    if (!engine) {
-        errs() << "Failed to construct ExecutionEngine: " << errStr << "\n";
-        return 1;
-    }
-    auto mainFunction = engine->FindFunctionNamed("main");
-    if (!mainFunction) {
-        errs() << "Function 'main' not found\n";
-        return 1;
-    }
-
-    // Execute the function
-    // If we want to pass the arguments from the command line to the function we can do it here
-    //std::vector<GenericValue> args(1);
-    //args[0].IntVal = APInt(32, 5);
-    engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
-    std::vector<llvm::GenericValue> noargs;
-    auto result = engine->runFunction(mainFunction, noargs);
+  if (dump_tokens) {
+    TokenStream tokens((source.data()));
+    tokens.printAllTokens();
     return 0;
+  }
+
+  const char *envVarValue = std::getenv("DUMP");
+  if (envVarValue != nullptr) {
+    dumpIt = std::atoi(envVarValue);
+  }
+
+  // Parse and typecheck builtin functions.
+  ProgramPtr program(new Program);
+  status = ParseAndTypecheck(GetBuiltins(), program.get());
+  assert(status == 0);
+
+  // Parse and typecheck user source code.
+  status = ParseAndTypecheck(source.data(), program.get());
+  if (status)
+    return status;
+  dumpSyntax(*program, filename);
+
+  // Generate LLVM IR.
+  llvm::LLVMContext context;
+  std::unique_ptr<llvm::Module> module(Codegen(&context, *program));
+  dumpIR(*module, filename, "initial");
+
+  // Verify the module, which catches malformed instructions and type errors.
+  assert(!verifyModule(*module, &llvm::errs()));
+
+  if (module.get() == nullptr) {
+    std::cout << "module je null exit";
+    exit(0);
+  }
+
+  optimize(module.get(), optimizationLevel.getValue());
+  dumpIR(*module, filename, "optimized");
+
+  if (!outputFile.empty()) {
+    // AOT mode: emit object file
+    emitObjectFile(module.get(), outputFile);
+    return 0;
+  } else if (emit_ir) {
+    // Emit IR to stdout
+    llvm::outs() << *module;
+    return 0;
+  } else if (run_mode) {
+    // JIT mode: run via ExecutionEngine
+    return runViaJIT(std::move(module));
+  } else {
+    std::cerr << "No action specified. Use --run, -emit-ir, or -o <file>\n";
+    return 1;
+  }
+
+  // Execute the function
+  // If we want to pass the arguments from the command line to the function we
+  // can do it here
+  // std::vector<GenericValue> args(1);
+  // args[0].IntVal = APInt(32, 5);
+  // engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
+  // std::vector<llvm::GenericValue> noargs;
+  // auto result = engine->runFunction(mainFunction, noargs);
+  return 0;
 }
 
 namespace {
 
 // Optimize the module using the given optimization level (0 -  3).
-    void optimize( Module* module, int optLevel )
-    {
-        llvm::PassBuilder passBuilder;
+void optimize(Module *module, int optLevel) {
+  llvm::PassBuilder passBuilder;
 
-        llvm::LoopAnalysisManager loopAnalysisManager;
-        llvm::FunctionAnalysisManager functionAnalysisManager;
-        llvm::CGSCCAnalysisManager cGSCCAnalysisManager;
-        llvm::ModuleAnalysisManager moduleAnalysisManager;
+  llvm::LoopAnalysisManager loopAnalysisManager;
+  llvm::FunctionAnalysisManager functionAnalysisManager;
+  llvm::CGSCCAnalysisManager cGSCCAnalysisManager;
+  llvm::ModuleAnalysisManager moduleAnalysisManager;
 
-        passBuilder.registerModuleAnalyses(moduleAnalysisManager);
-        passBuilder.registerCGSCCAnalyses(cGSCCAnalysisManager);
-        passBuilder.registerFunctionAnalyses(functionAnalysisManager);
-        passBuilder.registerLoopAnalyses(loopAnalysisManager);
+  passBuilder.registerModuleAnalyses(moduleAnalysisManager);
+  passBuilder.registerCGSCCAnalyses(cGSCCAnalysisManager);
+  passBuilder.registerFunctionAnalyses(functionAnalysisManager);
+  passBuilder.registerLoopAnalyses(loopAnalysisManager);
 
-        passBuilder.crossRegisterProxies(loopAnalysisManager, functionAnalysisManager, cGSCCAnalysisManager, moduleAnalysisManager);
+  passBuilder.crossRegisterProxies(loopAnalysisManager, functionAnalysisManager,
+                                   cGSCCAnalysisManager, moduleAnalysisManager);
 
-        llvm::ModulePassManager modulePassManager;
+  llvm::ModulePassManager modulePassManager;
 
+  llvm::OptimizationLevel level;
+  switch (optLevel) {
+  case 0:
+    level = llvm::OptimizationLevel::O0;
+    break;
+  case 1:
+    level = llvm::OptimizationLevel::O1;
+    break;
+  case 2:
+    level = llvm::OptimizationLevel::O2;
+    break;
+  case 3:
+    level = llvm::OptimizationLevel::O3;
+    break;
+  default:
+    level = llvm::OptimizationLevel::O2;
+  }
 
-        llvm::OptimizationLevel level;
-        switch (optLevel) {
-            case 0: level = llvm::OptimizationLevel::O0; break;
-            case 1: level = llvm::OptimizationLevel::O1; break;
-            case 2: level = llvm::OptimizationLevel::O2; break;
-            case 3: level = llvm::OptimizationLevel::O3; break;
-            default: level = llvm::OptimizationLevel::O2; // Default to O2 if an invalid level is provided
-        }
+  modulePassManager = passBuilder.buildPerModuleDefaultPipeline(level);
 
-        modulePassManager = passBuilder.buildPerModuleDefaultPipeline(level);
-
-        // Run the optimizations on the module.
-        modulePassManager.run(*module, moduleAnalysisManager);
-    }
+  // Run the optimizations on the module.
+  modulePassManager.run(*module, moduleAnalysisManager);
+}
 
 // Read file into the given buffer.  Returns zero for success.
-    int readFile( const char* filename, std::vector<char>* buffer )
-    {
-        // Open the stream at the end, get file size, and allocate data.
-        std::ifstream in( filename, std::ifstream::ate | std::ifstream::binary );
-        if( in.fail() )
-            return -1;
-        size_t length = static_cast<size_t>( in.tellg() );
-        buffer->resize( length + 1 );
+int readFile(const char *filename, std::vector<char> *buffer) {
+  // Open the stream at the end, get file size, and allocate data.
+  std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+  if (in.fail())
+    return -1;
+  size_t length = static_cast<size_t>(in.tellg());
+  buffer->resize(length + 1);
 
-        // Rewind and read entire file
-        in.clear();  // clear EOF
-        in.seekg( 0, std::ios::beg );
-        in.read( buffer->data(), length );
+  // Rewind and read entire file
+  in.clear(); // clear EOF
+  in.seekg(0, std::ios::beg);
+  in.read(buffer->data(), length);
 
-        (*buffer)[length] = '\0';
-        return 0;
-    }
-
-    void dumpSyntax( const Program& program, const char* srcFilename )
-    {
-        if ( dumpIt == 0)
-            return;
-        std::string   filename( std::string( srcFilename ) + ".syn" );
-        std::ofstream out( filename );
-        out << program << std::endl;
-    }
-    void dumpIR( llvm::Module& module, const char* srcFilename, const char* what )
-    {
-        if ( dumpIt == 0)
-            return;
-        std::string   filename( std::string( srcFilename ) + "." + what + ".ll" );
-        std::ofstream stream( filename );
-        llvm::raw_os_ostream out( stream );
-        out << module;
-    }
+  (*buffer)[length] = '\0';
+  return 0;
 }
+
+void dumpSyntax(const Program &program, const std::string &srcFilename) {
+  if (dumpIt == 0)
+    return;
+  // std::string filename(srcFilename + ".syn");
+  // std::ofstream out(filename);
+  // out << program << std::endl;
+  std::string astFilename(srcFilename + ".ast");
+  std::ofstream astOut(astFilename);
+  printAST(astOut, program);
+}
+void dumpIR(llvm::Module &module, const std::string &srcFilename,
+            const char *what) {
+  if (dumpIt == 0) {
+    return;
+  }
+  const std::string filename(srcFilename + "." + what + ".ll");
+  std::ofstream stream(filename);
+  llvm::raw_os_ostream out(stream);
+  out << module;
+}
+
+void emitObjectFile(llvm::Module *module, const std::string &filename) {
+  // Initialize target information
+  std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+  module->setTargetTriple(targetTriple);
+
+  // Look up the target
+  std::string error;
+  const auto target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+  if (!target) {
+    llvm::errs() << "Error: Could not find target for triple " << targetTriple
+                 << ": " << error << "\n";
+    exit(1);
+  }
+
+  // Create a target machine
+  std::string cpu = "generic";
+  std::string features = "";
+
+  TargetOptions opt;
+  auto TheTargetMachine = target->createTargetMachine(
+      targetTriple, cpu, features, opt, Reloc::PIC_);
+
+  std::unique_ptr<llvm::TargetMachine> targetMachine(
+      target->createTargetMachine(targetTriple, cpu, features, opt, Reloc::PIC_,
+                                  std::nullopt,
+                                  static_cast<CodeGenOpt::Level>(2)));
+  if (!targetMachine) {
+    llvm::errs() << "Error: Could not create target machine\n";
+    exit(1);
+  }
+
+  // Open the output file
+  std::error_code ec;
+  llvm::raw_fd_ostream dest(filename, ec, llvm::sys::fs::OF_None);
+  if (ec) {
+    llvm::errs() << "Error: Could not open file " << filename << ": "
+                 << ec.message() << "\n";
+    exit(1);
+  }
+
+  // Set up the pass manager to emit object code
+  llvm::legacy::PassManager passManager;
+  if (targetMachine->addPassesToEmitFile(passManager, dest, nullptr,
+                                         llvm::CGFT_ObjectFile)) {
+    llvm::errs() << "Error: Target machine cannot emit an object file\n";
+    exit(1);
+  }
+
+  // Run the passes to emit the object file
+  passManager.run(*module);
+  dest.flush();
+
+  // Close the file
+  dest.close();
+}
+
+int runViaJIT(std::unique_ptr<llvm::Module> module) {
+  std::string errStr;
+  auto *engine = llvm::EngineBuilder(std::move(module))
+                     .setErrorStr(&errStr)
+                     .setEngineKind(llvm::EngineKind::JIT)
+                     .create();
+
+  if (!engine) {
+    llvm::errs() << "JIT init failed: " << errStr << "\n";
+    return 1;
+  }
+
+  auto *mainFunc = engine->FindFunctionNamed("main");
+  if (!mainFunc) {
+    llvm::errs() << "Function 'main' not found\n";
+    return 1;
+  }
+
+  engine->getTargetMachine()->setOptLevel(static_cast<CodeGenOpt::Level>(2));
+  // If we want to pass the arguments from the command line to the function we
+  // can do it here
+  // std::vector<GenericValue> args(1);
+  // args[0].IntVal = APInt(32, 5);
+  std::vector<llvm::GenericValue> noargs;
+  llvm::GenericValue result = engine->runFunction(mainFunc, noargs);
+  return 0;
+}
+
+} // namespace

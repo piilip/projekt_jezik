@@ -2,6 +2,10 @@
 
 #include <cassert>
 #include <cstddef>
+#include <utility>
+#include <memory>
+
+class Exp;
 
 enum Type
 {
@@ -9,17 +13,6 @@ enum Type
     kTypeBool,
     kTypeInt,
     kTypeFloat
-};
-
-
-struct VarType{
-    Type type;
-    bool isArray;
-    int arraySize;
-
-    explicit VarType(Type type) : type(type), isArray(false), arraySize(0) {}
-    explicit VarType(Type type, int size) : type(type), isArray(true), arraySize(size) {}
-
 };
 
 

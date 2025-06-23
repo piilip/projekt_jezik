@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Type.h"
+#include "Exp.h"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -8,7 +8,7 @@
 #include <utility>
 
 // Variables, and function parameters information
-class VarDecl
+class  VarDecl
 {
   public:
     enum Kind
@@ -20,7 +20,7 @@ class VarDecl
 
     VarDecl( Kind kind, VarType type, std::string  name )
         : m_kind( kind )
-        , m_type( type )
+        , m_type( std::move(type) )
         , m_name(std::move( name ))
     {
     }
@@ -36,7 +36,10 @@ class VarDecl
     /// Get the variable's type.
     const Type& GetType() const { return m_type.type; }
     const bool& GetIsArray() const { return m_type.isArray; }
-    const int& GetArraySize() const { return m_type.arraySize; }
+
+    const VarType &getVariable() const {
+        return m_type;
+    }
 
     /// Get the variable name.
     const std::string& GetName() const { return m_name; }
@@ -52,7 +55,8 @@ using VarDeclPtr = std::unique_ptr<VarDecl>;
 inline std::ostream& operator<<( std::ostream& out, const VarDecl& varDecl )
 {
     if(varDecl.GetIsArray()){
-        return out << toString(varDecl.GetType()) << ' ' << varDecl.GetName() << "[" << varDecl.GetArraySize() << "]";
+        return out << toString(varDecl.GetType()) << ' ' << varDecl.GetName() << "[";
+
     }else{
         return out << toString(varDecl.GetType()) << ' ' << varDecl.GetName();
     }
