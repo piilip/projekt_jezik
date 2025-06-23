@@ -130,7 +130,7 @@ private:
 
   void skipWhitespace() {
     while (!isAtEnd() && std::isspace(peek())) {
-      advance(); // This will handle line/column counting correctly
+      advance();
     }
   }
 

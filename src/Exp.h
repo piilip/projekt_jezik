@@ -9,9 +9,9 @@
 /// Base class for an expression, which holds its type.
 class Exp
 {
-  public:
+public:
     explicit Exp( Type type = kTypeUnknown )
-        : m_type( type )
+            : m_type( type )
     {
     }
 
@@ -23,17 +23,17 @@ class Exp
 
     virtual void* Dispatch(ExpVisitor& visitor ) = 0;
 
-  private:
+private:
     Type m_type;
 };
 using ExpPtr = std::unique_ptr<Exp>;
 
 class BoolExp : public Exp
 {
-  public:
+public:
     BoolExp( bool value )
-        : Exp( kTypeBool )
-        , m_value( value )
+            : Exp( kTypeBool )
+            , m_value( value )
     {
     }
 
@@ -41,7 +41,7 @@ class BoolExp : public Exp
 
     void* Dispatch( ExpVisitor& visitor ) override { return visitor.Visit( *this ); }
 
-  private:
+private:
     bool m_value;
 };
 
@@ -69,10 +69,10 @@ private:
 
 class IntExp : public Exp
 {
-  public:
+public:
     IntExp( int value )
-        : Exp( kTypeInt )
-        , m_value( value )
+            : Exp( kTypeInt )
+            , m_value( value )
     {
     }
 
@@ -80,16 +80,16 @@ class IntExp : public Exp
 
     void* Dispatch( ExpVisitor& visitor ) override { return visitor.Visit( *this ); }
 
-  private:
+private:
     int m_value;
 };
 
 
 class VarExp : public Exp
 {
-  public:
+public:
     VarExp( const std::string& name )
-        : m_name( name )
+            : m_name( name ), m_varDecl( nullptr )
     {
     }
     const std::string& getName() const { return m_name; }
@@ -102,7 +102,7 @@ class VarExp : public Exp
 
     void* Dispatch( ExpVisitor& visitor ) override { return visitor.Visit( *this ); }
 
-  private:
+private:
     std::string    m_name;
     const VarDecl* m_varDecl;  // assigned by the typechecker.
 };
@@ -131,32 +131,32 @@ public:
 /// Function call expression.
 class CallExp : public Exp
 {
-  public:
+public:
     // varargs function call
     CallExp( const std::string& funcName, std::vector<ExpPtr>&& args )
-        : m_funcName( funcName )
-        , m_args( std::move( args ) )
-        , m_funcDef( nullptr )
+            : m_funcName( funcName )
+            , m_args( std::move( args ) )
+            , m_funcDef( nullptr )
     {
     }
 
     // unary function call
     CallExp( const std::string& funcName, ExpPtr exp )
-        : m_funcName( funcName )
-        , m_args( 1 )
-        , m_funcDef( nullptr )
+            : m_funcName( funcName )
+            , m_args( 1 )
+            , m_funcDef( nullptr )
     {
         m_args[0] = std::move( exp );
     }
 
     // binary function call
     CallExp( const std::string& funcName, ExpPtr leftExp, ExpPtr rightExp )
-        : m_funcName( funcName )
-        , m_args( 2 )
-        , m_funcDef( nullptr )
+            : m_funcName( funcName )
+            , m_args( 2 )
+            , m_funcDef( nullptr )
     {
         m_args[0] = std::move( leftExp );
-        m_args[1] = std::move( rightExp ); 
+        m_args[1] = std::move( rightExp );
     }
 
 
@@ -172,7 +172,7 @@ class CallExp : public Exp
 
     void* Dispatch( ExpVisitor& visitor ) override { return visitor.Visit( *this ); }
 
-  private:
+private:
     std::string         m_funcName;
     std::vector<ExpPtr> m_args;
     const FuncDef*      m_funcDef;  // set by typechecker.

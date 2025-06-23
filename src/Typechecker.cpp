@@ -116,7 +116,6 @@ private:
 
   // Find a (possibly overloaded) function definition with the specified
   // name whose parameters match the types of the given arguments.
-  // TODO: generalize this and use it to check for duplicate definitions.
   const FuncDef *findFunc(std::string name,
                           const std::vector<ExpPtr> &args) const {
     auto range = m_funcTable.equal_range(name);
@@ -325,7 +324,7 @@ private:
 // Typecheck a function definition, adding it to the given function table.
 void checkFunction(FuncDef *funcDef, FuncTable *funcTable) {
   // To permit recursion, we add the definition to the function table
-  // before typechecking the body.  TODO: check for duplicate definitions.
+  // before typechecking the body.
   funcTable->insert(FuncTable::value_type(funcDef->getName(), funcDef));
 
   // Construct a scope and add the function parameters.

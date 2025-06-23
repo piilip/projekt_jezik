@@ -32,11 +32,6 @@
 #include <memory>
 #include <utility>
 
-#ifndef OPT_LEVEL
-/// Optimization level, which defaults to -O2.
-#define OPT_LEVEL 2
-#endif
-
 int dumpIt = 1;
 
 namespace {
@@ -58,7 +53,7 @@ int ParseAndTypecheck(const char *source, Program *program) {
 
   // Parse the token stream into a program.
   int status = ParseProgram(tokens, program);
-
+  dumpSyntax(*program, "test123");
   // If the parser succeeded, typecheck the program.
   if (status == 0)
     status = Typecheck(*program);
@@ -79,11 +74,18 @@ int main(int argc, const char *const *argv) {
       "o", llvm::cl::desc("Specify output filename"),
       llvm::cl::value_desc("filename"));
 
+    llvm::cl::opt<int> optimizationLevel(
+            "O", llvm::cl::desc("Optimization level (0-3)"),
+            llvm::cl::value_desc("level"), llvm::cl::init(2),
+            llvm::cl::Prefix, llvm::cl::ValueOptional);
+
   llvm::cl::opt<bool> run_mode("run",
                                llvm::cl::desc("JIT and run the program"));
   llvm::cl::opt<bool> emit_ir("emit-ir", llvm::cl::desc("Emit LLVM IR only"));
   llvm::cl::opt<bool> dump_tokens("dump-tokens",
                                   llvm::cl::desc("Dump tokens and exit"));
+
+
   llvm::cl::ParseCommandLineOptions(argc, argv, "My Compiler\n");
 
   std::vector<char> source;
@@ -128,7 +130,7 @@ int main(int argc, const char *const *argv) {
     exit(0);
   }
 
-  optimize(module.get(), OPT_LEVEL);
+  optimize(module.get(), optimizationLevel.getValue());
   dumpIR(*module, filename, "optimized");
 
   if (!outputFile.empty()) {
@@ -194,8 +196,7 @@ void optimize(Module *module, int optLevel) {
     level = llvm::OptimizationLevel::O3;
     break;
   default:
-    level = llvm::OptimizationLevel::O2; // Default to O2 if an invalid level is
-                                         // provided
+    level = llvm::OptimizationLevel::O2;
   }
 
   modulePassManager = passBuilder.buildPerModuleDefaultPipeline(level);
