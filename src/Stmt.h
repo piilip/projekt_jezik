@@ -28,7 +28,7 @@ class AssignStmt : public Stmt {
 public:
   // rvalue is some arbitrary expression
   AssignStmt(const std::string &varName, ExpPtr &&rvalue)
-      : m_varName(varName), m_rvalue(std::move(rvalue)) {}
+      : m_varName(varName), m_rvalue(std::move(rvalue)), m_varDecl(nullptr){}
 
   const std::string &GetVarName() const { return m_varName; }
 
