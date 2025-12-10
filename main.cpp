@@ -1,17 +1,16 @@
 ﻿#include "src/Builtins.h"
 #include "src/Codegen.h"
-#include "src/FuncDef.h"
 #include "src/Parser.h"
 #include "src/Printer.h"
 #include "src/Program.h"
 #include "src/TokenStream.h"
 #include "src/Typechecker.h"
-#include "llvm/Support/CommandLine.h"
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Support/CommandLine.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/raw_ostream.h>
 #include <optional>
@@ -74,17 +73,16 @@ int main(int argc, const char *const *argv) {
       "o", llvm::cl::desc("Specify output filename"),
       llvm::cl::value_desc("filename"));
 
-    llvm::cl::opt<int> optimizationLevel(
-            "O", llvm::cl::desc("Optimization level (0-3)"),
-            llvm::cl::value_desc("level"), llvm::cl::init(2),
-            llvm::cl::Prefix, llvm::cl::ValueOptional);
+  llvm::cl::opt<int> optimizationLevel(
+      "O", llvm::cl::desc("Optimization level (0-3)"),
+      llvm::cl::value_desc("level"), llvm::cl::init(2), llvm::cl::Prefix,
+      llvm::cl::ValueOptional);
 
   llvm::cl::opt<bool> run_mode("run",
                                llvm::cl::desc("JIT and run the program"));
   llvm::cl::opt<bool> emit_ir("emit-ir", llvm::cl::desc("Emit LLVM IR only"));
   llvm::cl::opt<bool> dump_tokens("dump-tokens",
                                   llvm::cl::desc("Dump tokens and exit"));
-
 
   llvm::cl::ParseCommandLineOptions(argc, argv, "My Compiler\n");
 
